@@ -33,10 +33,11 @@
     "extraResources": [
       {
         "from": "cs2-sharecode-cli",
-        "to": "cs2-sharecode-cli",
-        "filter": [
-          "**/*"
-        ]
+        "to": "cs2-sharecode-cli"
+      },
+      {
+        "from": "bin",
+        "to": "bin"
       }
     ],
     "win": {

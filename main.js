@@ -1,21 +1,20 @@
 // main.js - Main Electron Process
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const axios = require('axios');
 const fs = require('fs');
 const bz2 = require('unbzip2-stream');
-const { pipeline } = require('stream');
+const { pipeline } = require('stream/promises');
 const Store = require('electron-store');
 
-// Initialize persistent storage
 const store = new Store();
+let mainWindow;
 
-// Function to create the main application window
 function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 800,
+  mainWindow = new BrowserWindow({
+    width: 1200,
     height: 800,
     autoHideMenuBar: true,
     webPreferences: {
@@ -24,186 +23,167 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-
   mainWindow.loadFile('index.html');
-  // mainWindow.webContents.openDevTools(); // Uncomment for debugging
+  mainWindow.maximize(); // Start maximized
+  // mainWindow.webContents.openDevTools();
 }
 
-// App lifecycle events
-app.whenReady().then(() => {
-  createWindow();
+app.whenReady().then(createWindow);
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-// IPC handler for electron-store
-ipcMain.handle('electron-store', async (event, method, ...args) => {
-    if (typeof store[method] === 'function') {
-        return store[method](...args);
-    }
-    return store[method];
-});
-
-
-// IPC handler to open folder selection dialog
+// --- IPC Handlers ---
+ipcMain.on('open-external-link', (event, url) => shell.openExternal(url));
+ipcMain.handle('electron-store', (event, method, ...args) => store[method](...args));
 ipcMain.handle('dialog:openDirectory', async () => {
-  const { canceled, filePaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-  });
-  if (canceled) {
-    return null;
-  } else {
-    // Save the selected path for next time
-    store.set('downloadPath', filePaths[0]);
-    return filePaths[0];
-  }
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
+  if (!canceled) store.set('downloadPath', filePaths[0]);
+  return canceled ? null : filePaths[0];
 });
 
-// IPC handler for the main download logic
+const sendStatus = (status, message, data = {}) => mainWindow?.webContents.send('download-status', { status, message, ...data });
+const sendProgress = (type, current, total) => mainWindow?.webContents.send('progress-update', { type, current, total });
+
+ipcMain.handle('find-demos', async (event, codes) => {
+    const results = { found: [], notFound: [] };
+    for (let i = 0; i < codes.length; i++) {
+        sendProgress('resolving', i + 1, codes.length);
+        try {
+            const url = await getDemoUrl(codes[i]);
+            if (url) results.found.push({ code: codes[i], url });
+            else results.notFound.push(codes[i]);
+        } catch (error) {
+            results.notFound.push(codes[i]);
+        }
+    }
+    return results;
+});
+
+ipcMain.on('download-all-demos', async (event, { urls, path: downloadPath, workers }) => {
+    const tempDir = path.join(downloadPath, 'temp_demos');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+    sendStatus('batch-start', `Starting batch download of ${urls.length} demos...`);
+    
+    const downloadQueue = [...urls];
+    const decompressQueue = [];
+    let isDecompressing = false;
+    let downloadedCount = 0;
+    let decompressedCount = 0;
+
+    const decompressWorker = async () => {
+        if (isDecompressing || decompressQueue.length === 0) return;
+        isDecompressing = true;
+        
+        const { tempFilePath, demFilename } = decompressQueue.shift();
+        const finalDemPath = path.join(downloadPath, demFilename);
+        try {
+            await decompressFile(tempFilePath, finalDemPath);
+            fs.unlinkSync(tempFilePath);
+            decompressedCount++;
+            sendProgress('decompressing', decompressedCount, urls.length);
+        } catch (error) {
+            sendStatus('error', `Failed to decompress ${demFilename}.`, { isError: true });
+        } finally {
+            isDecompressing = false;
+            if (downloadedCount + (urls.length - downloadQueue.length - decompressQueue.length) === urls.length && decompressQueue.length === 0) {
+                 sendStatus('complete', 'All tasks finished!');
+                 if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+            } else {
+                decompressWorker();
+            }
+        }
+    };
+
+    const downloadWorker = async () => {
+        while (downloadQueue.length > 0) {
+            const url = downloadQueue.shift();
+            if (!url) continue;
+
+            const bz2Filename = path.basename(new URL(url).pathname);
+            const tempFilePath = path.join(tempDir, bz2Filename);
+            try {
+                await downloadFileWithTimeout(url, tempFilePath);
+                downloadedCount++;
+                sendProgress('downloading', downloadedCount, urls.length);
+                decompressQueue.push({ tempFilePath, demFilename: bz2Filename.replace('.bz2', '') });
+                if (!isDecompressing) decompressWorker();
+            } catch (error) {
+                sendStatus('error', `Download failed for ${bz2Filename}.`, { isError: true, retryUrl: url });
+                downloadedCount++; // Count as processed
+                sendProgress('downloading', downloadedCount, urls.length);
+            }
+        }
+    };
+
+    const workerPromises = Array.from({ length: workers }, downloadWorker);
+    await Promise.all(workerPromises);
+});
+
+ipcMain.on('retry-download', async (event, { url, path: downloadPath }) => {
+    // Simplified retry - integrates into the single download flow
+    sendStatus('info', `Retrying download for ${path.basename(new URL(url).pathname)}...`);
+    await pipelineDownloadAndDecompress(url, downloadPath);
+});
+
 ipcMain.on('download-demo', async (event, { shareCode, downloadPath }) => {
-  const webContents = event.sender;
-
-  // Helper to send status updates to the renderer process
-  const sendStatus = (status, message, isError = false) => {
-    webContents.send('download-status', { status, message, isError });
-  };
-
-  let downloadedFilePath = ''; // To keep track of the file for cleanup
-
   try {
-    // 1. Fetch Demo URL by executing the CLI tool as a child process
     sendStatus('fetching', 'Fetching demo URL...');
+    sendProgress('resolving', 1, 1);
     const demoUrl = await getDemoUrl(shareCode);
-    if (!demoUrl) {
-        throw new Error("Could not retrieve a valid demo URL. The share code might be invalid or expired.");
-    }
-    sendStatus('fetching', `Successfully fetched demo URL: ${demoUrl}`);
+    if (!demoUrl) throw new Error("Could not retrieve a valid demo URL.");
     
-    // Determine filenames from URL
-    const bz2Filename = path.basename(new URL(demoUrl).pathname);
-    const demFilename = bz2Filename.replace('.bz2', '');
-    downloadedFilePath = path.join(downloadPath, bz2Filename);
-    const finalDemPath = path.join(downloadPath, demFilename);
-
-    // 2. Download the file
-    sendStatus('downloading', `Downloading ${bz2Filename}...`);
-    await downloadFile(demoUrl, downloadedFilePath);
-    sendStatus('downloading', `File downloaded successfully to ${downloadedFilePath}`);
-
-    // 3. Decompress the .bz2 file
-    sendStatus('extracting', `Decompressing ${bz2Filename}...`);
-    await decompressFile(downloadedFilePath, finalDemPath);
-    sendStatus('extracting', `Successfully decompressed demo to ${finalDemPath}`);
-
-    // 4. Clean up the bz2 file
-    fs.unlinkSync(downloadedFilePath);
+    await pipelineDownloadAndDecompress(demoUrl, downloadPath, () => sendProgress('downloading', 1, 1), () => sendProgress('decompressing', 1, 1));
     sendStatus('complete', 'Download and decompression complete!');
-
   } catch (error) {
-    console.error('An error occurred:', error);
-    sendStatus('error', error.message, true);
-    // Clean up partially downloaded file on error
-    if (downloadedFilePath && fs.existsSync(downloadedFilePath)) {
-        fs.unlinkSync(downloadedFilePath);
-    }
+    sendStatus('error', error.message, { isError: true });
   }
 });
 
-
-/**
- * Executes the cs2-sharecode-cli tool to get the demo URL.
- * @param {string} shareCode - The CS2 share code.
- * @returns {Promise<string>} - A promise that resolves with the demo URL.
- */
-function getDemoUrl(shareCode) {
-  return new Promise((resolve, reject) => {
-    // Correctly determine the path for both dev and packaged environments
-    const isDev = !app.isPackaged;
-    const resourcesPath = isDev ? __dirname : process.resourcesPath;
-    const cliDirectory = path.join(resourcesPath, 'cs2-sharecode-cli');
-    const scriptPath = path.join(cliDirectory, 'dist', 'index.js');
-    
-    // **FIX**: Use the bundled node.exe when packaged
-    const nodeExecutable = isDev ? 'node' : path.join(resourcesPath, 'bin', 'node.exe');
-    const command = `"${nodeExecutable}" "${scriptPath}" demo-url "${shareCode}"`;
-
-    // Execute the command with the correct working directory (`cwd`)
-    exec(command, { cwd: cliDirectory }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`CLI tool execution error: ${error.message}`);
-        console.error(`CLI tool stderr: ${stderr}`);
-        return reject(new Error(`Failed to execute CLI tool. Stderr: ${stderr}`));
-      }
-      
-      const lines = stdout.trim().split('\n');
-      const url = lines.find(line => line.startsWith('http'));
-      
-      if (url) {
-        resolve(url);
-      } else {
-        console.error(`CLI tool did not return a valid URL. Full output: "${stdout}"`);
-        reject(new Error(`CLI tool did not return a valid URL. Check console for details.`));
-      }
-    });
-  });
+// --- Core Logic ---
+async function pipelineDownloadAndDecompress(demoUrl, downloadPath, onDownload, onDecompress) {
+    const demFilename = path.basename(new URL(demoUrl).pathname).replace('.bz2', '');
+    const finalDemPath = path.join(downloadPath, demFilename);
+    try {
+        const response = await axios({ url: demoUrl, method: 'GET', responseType: 'stream' });
+        onDownload?.();
+        await pipeline(response.data, bz2(), fs.createWriteStream(finalDemPath));
+        onDecompress?.();
+        sendStatus('success', `Successfully saved ${demFilename}`);
+    } catch (error) {
+        if (fs.existsSync(finalDemPath)) fs.unlinkSync(finalDemPath);
+        throw error;
+    }
 }
 
-/**
- * Downloads a file from a URL.
- * @param {string} url - The URL of the file to download.
- * @param {string} destPath - The destination path to save the file.
- * @returns {Promise<void>}
- */
-async function downloadFile(url, destPath) {
+async function downloadFileWithTimeout(url, destPath) {
     const writer = fs.createWriteStream(destPath);
-
-    const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'stream',
-    });
-
+    const response = await axios({ url, method: 'GET', responseType: 'stream', timeout: 300000 });
     response.data.pipe(writer);
-
     return new Promise((resolve, reject) => {
         writer.on('finish', resolve);
         writer.on('error', reject);
     });
 }
 
-/**
- * Decompresses a .bz2 file using streams.
- * @param {string} inputPath - Path to the .bz2 file.
- * @param {string} outputPath - Path to write the decompressed file.
- * @returns {Promise<void>}
- */
 function decompressFile(inputPath, outputPath) {
-    return new Promise((resolve, reject) => {
-        const readStream = fs.createReadStream(inputPath);
-        const writeStream = fs.createWriteStream(outputPath);
-        const decompressor = bz2();
+    return pipeline(fs.createReadStream(inputPath), bz2(), fs.createWriteStream(outputPath));
+}
 
-        pipeline(
-            readStream,
-            decompressor,
-            writeStream,
-            (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            }
-        );
+function getDemoUrl(shareCode) {
+  return new Promise((resolve, reject) => {
+    const isDev = !app.isPackaged;
+    const resourcesPath = isDev ? __dirname : process.resourcesPath;
+    const cliDirectory = path.join(resourcesPath, 'cs2-sharecode-cli');
+    const scriptPath = path.join(cliDirectory, 'dist', 'index.js');
+    const nodeExecutable = isDev ? 'node' : path.join(resourcesPath, 'bin', 'node.exe');
+    const command = `"${nodeExecutable}" "${scriptPath}" demo-url "${shareCode}"`;
+
+    exec(command, { cwd: cliDirectory }, (error, stdout, stderr) => {
+      if (error) return reject(new Error(stderr || 'CLI execution failed'));
+      const url = stdout.trim().split('\n').find(line => line.startsWith('http'));
+      if (url) resolve(url);
+      else reject(new Error('No valid URL found in CLI output.'));
     });
+  });
 }

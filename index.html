@@ -3,64 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <title>CS2 Demo Downloader</title>
-    <!-- CORRECTED CSP to allow Tailwind CSS -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdn.tailwindcss.com;">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom scrollbar for a better look */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1f2937; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .progress-bar-fill { transition: width 0.3s ease-in-out; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200 font-sans antialiased">
+<body class="bg-gray-900 text-gray-200 font-sans antialiased h-screen flex flex-col">
 
-    <div class="container mx-auto p-6 max-w-3xl">
-        <header class="flex items-center space-x-4 mb-8">
-            <!-- Simple App Icon -->
-            <svg class="w-16 h-16 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+    <div class="container mx-auto p-6 max-w-6xl flex-grow flex flex-col">
+        <header class="flex items-center space-x-4 mb-6">
+            <svg class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             <div>
                 <h1 class="text-3xl font-bold text-white">CS2 Demo Downloader</h1>
-                <p class="text-gray-400">A simple GUI to download and decompress match demos.</p>
+                <p class="text-gray-400">Download and decompress match demos from share codes.</p>
             </div>
         </header>
 
-        <main class="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-2xl p-6 border border-gray-700 space-y-6">
-            <!-- Share Code Input -->
-            <div>
-                <label for="share-code" class="block text-sm font-medium text-gray-300 mb-2">Share Code or Steam Link</label>
-                <div class="relative">
-                    <input type="text" id="share-code" placeholder="CSGO-xxxx-xxxx..." class="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200">
-                </div>
+        <!-- Main Content Area -->
+        <main class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Panel: Inputs -->
+            <div class="bg-gray-800/50 rounded-lg p-6 border border-gray-700 flex flex-col space-y-6">
+                <!-- Single Download -->
+                <section>
+                    <h2 class="text-lg font-semibold text-white mb-3">Single Download</h2>
+                    <input type="text" id="share-code" placeholder="Paste Share Code or Steam Link..." class="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 transition">
+                    <button id="download-btn" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-md transition disabled:bg-gray-600">Download Demo</button>
+                </section>
+
+                <hr class="border-gray-700">
+
+                <!-- Batch Download -->
+                <section class="flex flex-col flex-grow">
+                    <h2 class="text-lg font-semibold text-white mb-3">Batch Download</h2>
+                    <textarea id="multi-share-code" rows="5" placeholder="Paste multiple share codes here (one per line)..." class="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 transition"></textarea>
+                    <div class="flex items-center space-x-3 mt-3">
+                         <label for="worker-count" class="text-sm font-medium text-gray-300">Workers:</label>
+                         <input type="number" id="worker-count" value="4" min="1" max="8" class="w-16 bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white text-center">
+                    </div>
+                    <button id="find-demos-btn" class="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-md transition">Find Demos</button>
+                </section>
+                
+                <!-- Global Controls -->
+                <section class="mt-auto">
+                     <label for="download-folder" class="block text-sm font-medium text-gray-300 mb-2">Download Folder</label>
+                     <div class="flex items-center">
+                         <input type="text" id="download-folder" placeholder="No folder selected" readonly class="w-full bg-gray-700 border border-gray-600 rounded-l-md px-4 py-2.5 text-gray-400">
+                         <button id="select-folder-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 px-4 rounded-r-md transition whitespace-nowrap">Select...</button>
+                     </div>
+                </section>
             </div>
 
-            <!-- Download Folder Picker -->
-            <div>
-                <label for="download-folder" class="block text-sm font-medium text-gray-300 mb-2">Download Folder</label>
-                <div class="flex items-center space-x-3">
-                    <input type="text" id="download-folder" placeholder="No folder selected" readonly class="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-2.5 text-gray-400 cursor-not-allowed">
-                    <button id="select-folder-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 px-5 rounded-md transition duration-300 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-gray-500">
-                        Select...
-                    </button>
+            <!-- Right Panel: Results & Status -->
+            <div class="bg-gray-800/50 rounded-lg p-6 border border-gray-700 flex flex-col">
+                <!-- Batch Results -->
+                <div id="batch-results-area" class="hidden">
+                    <h2 class="text-lg font-semibold text-white mb-3">Found Demos</h2>
+                    <div id="results-container" class="bg-gray-900/80 rounded-md p-2 max-h-40 overflow-y-auto border border-gray-700 mb-3"></div>
+                    <div class="flex space-x-2">
+                        <button id="copy-links-btn" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 rounded-md transition">Copy Links</button>
+                        <button id="download-all-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-md transition">Download All</button>
+                    </div>
+                    <hr class="border-gray-700 my-4">
                 </div>
-            </div>
+                
+                <!-- Main Status & Progress Area -->
+                <div class="flex-grow flex flex-col justify-center">
+                    <div id="progress-area" class="space-y-4 mb-4 hidden">
+                        <!-- Resolving Progress -->
+                        <div id="resolving-progress-container" class="hidden">
+                            <label class="text-sm font-medium text-gray-300">Resolving Share Codes</label>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5 mt-1"><div id="resolving-progress-bar" class="bg-indigo-500 h-2.5 rounded-full progress-bar-fill" style="width: 0%"></div></div>
+                        </div>
+                        <!-- Downloading Progress -->
+                        <div id="downloading-progress-container" class="hidden">
+                            <label class="text-sm font-medium text-gray-300">Downloading Files</label>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5 mt-1"><div id="downloading-progress-bar" class="bg-blue-500 h-2.5 rounded-full progress-bar-fill" style="width: 0%"></div></div>
+                        </div>
+                         <!-- Decompressing Progress -->
+                        <div id="decompressing-progress-container" class="hidden">
+                            <label class="text-sm font-medium text-gray-300">Decompressing Files</label>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5 mt-1"><div id="decompressing-progress-bar" class="bg-green-500 h-2.5 rounded-full progress-bar-fill" style="width: 0%"></div></div>
+                        </div>
+                    </div>
 
-            <!-- Download Button -->
-            <div class="pt-2">
-                <button id="download-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300 disabled:bg-gray-600 disabled:cursor-wait flex items-center justify-center space-x-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500">
-                    <svg id="download-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    <span id="download-btn-text">Download Demo</span>
-                </button>
+                    <!-- Single Line Status -->
+                    <div id="status-line" class="h-6 text-center text-gray-400 font-mono text-sm mt-2">
+                        <span>Waiting for input...</span>
+                    </div>
+                </div>
             </div>
         </main>
 
-        <!-- Status/Log Area -->
-        <footer class="mt-8">
-            <h2 class="text-lg font-semibold text-gray-200 mb-3">Status Log</h2>
-            <div id="status-container" class="bg-gray-900/80 rounded-lg p-4 h-48 overflow-y-auto font-mono text-sm text-gray-300 space-y-2 border border-gray-700">
-                <p class="text-gray-500">Waiting for input...</p>
-            </div>
+        <!-- Footer -->
+        <footer class="text-center py-4 text-gray-500 text-sm">
+            <p>Created by Norton | <a href="https://steamcommunity.com/id/norton99/" id="steam-link" class="hover:text-blue-400 transition cursor-pointer">Steam Profile</a></p>
         </footer>
     </div>
 

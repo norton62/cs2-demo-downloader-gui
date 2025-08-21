@@ -5,10 +5,21 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Main Actions
   selectFolder: () => ipcRenderer.invoke('dialog:openDirectory'),
   downloadDemo: (args) => ipcRenderer.send('download-demo', args),
+  findDemos: (codes) => ipcRenderer.invoke('find-demos', codes),
+  downloadAllDemos: (urls, path, workers) => ipcRenderer.send('download-all-demos', { urls, path, workers }),
+  retryDownload: (url, path) => ipcRenderer.send('retry-download', { url, path }),
+  
+  // Listeners
   onDownloadStatus: (callback) => ipcRenderer.on('download-status', (_event, value) => callback(value)),
-  // Expose a generic way to interact with electron-store
+  onProgressUpdate: (callback) => ipcRenderer.on('progress-update', (_event, value) => callback(value)),
+
+  // External Link
+  openExternalLink: (url) => ipcRenderer.send('open-external-link', url),
+
+  // Store
   store: {
     get(key) {
       return ipcRenderer.invoke('electron-store', 'get', key);
