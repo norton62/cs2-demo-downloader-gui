@@ -16,7 +16,7 @@ const store = new Store();
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 800,
-    height: 700,
+    height: 800,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -121,23 +121,23 @@ ipcMain.on('download-demo', async (event, { shareCode, downloadPath }) => {
 
 
 /**
- * **REWRITTEN FUNCTION**
  * Executes the cs2-sharecode-cli tool to get the demo URL.
  * @param {string} shareCode - The CS2 share code.
  * @returns {Promise<string>} - A promise that resolves with the demo URL.
  */
 function getDemoUrl(shareCode) {
   return new Promise((resolve, reject) => {
-    // **FIX**: Correctly determine the path for both dev and packaged environments
+    // Correctly determine the path for both dev and packaged environments
     const isDev = !app.isPackaged;
     const resourcesPath = isDev ? __dirname : process.resourcesPath;
     const cliDirectory = path.join(resourcesPath, 'cs2-sharecode-cli');
-
     const scriptPath = path.join(cliDirectory, 'dist', 'index.js');
-    const command = `node "${scriptPath}" demo-url "${shareCode}"`;
+    
+    // **FIX**: Use the bundled node.exe when packaged
+    const nodeExecutable = isDev ? 'node' : path.join(resourcesPath, 'bin', 'node.exe');
+    const command = `"${nodeExecutable}" "${scriptPath}" demo-url "${shareCode}"`;
 
-    // **FIX**: Execute the command with the correct working directory (`cwd`)
-    // This ensures that the CLI tool can find its own node_modules.
+    // Execute the command with the correct working directory (`cwd`)
     exec(command, { cwd: cliDirectory }, (error, stdout, stderr) => {
       if (error) {
         console.error(`CLI tool execution error: ${error.message}`);

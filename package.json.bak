@@ -28,11 +28,16 @@
       "main.js",
       "preload.js",
       "index.html",
-      "renderer.js",
-      "cs2-sharecode-cli/"
+      "renderer.js"
     ],
-    "asarUnpack": [
-      "**/cs2-sharecode-cli/**"
+    "extraResources": [
+      {
+        "from": "cs2-sharecode-cli",
+        "to": "cs2-sharecode-cli",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "target": "nsis",
