@@ -1,0 +1,51 @@
+{
+  "name": "cs2-demo-downloader",
+  "version": "1.0.0",
+  "description": "A GUI for the cs2-sharecode-cli tool.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "npm run build:cli",
+    "build:cli": "cd cs2-sharecode-cli && npm install && npm run build",
+    "dist": "npm run build:cli && electron-builder"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "electron-store": "^8.2.0",
+    "extract-zip": "^2.0.1",
+    "unbzip2-stream": "^1.4.3"
+  },
+  "devDependencies": {
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.cs2-demo-downloader.app",
+    "productName": "CS2 Demo Downloader",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js"
+    ],
+    "extraResources": [
+      {
+        "from": "cs2-sharecode-cli",
+        "to": "cs2-sharecode-cli",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

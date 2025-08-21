@@ -1,0 +1,90 @@
+// renderer.js - UI logic for the renderer process
+
+const shareCodeInput = document.getElementById('share-code');
+const downloadFolderInput = document.getElementById('download-folder');
+const selectFolderBtn = document.getElementById('select-folder-btn');
+const downloadBtn = document.getElementById('download-btn');
+const downloadBtnText = document.getElementById('download-btn-text');
+const statusContainer = document.getElementById('status-container');
+
+// On app load, get the last used download path
+document.addEventListener('DOMContentLoaded', async () => {
+    const savedPath = await window.electronAPI.store.get('downloadPath');
+    if (savedPath) {
+        downloadFolderInput.value = savedPath;
+    }
+});
+
+// Event listener for the "Select Folder" button
+selectFolderBtn.addEventListener('click', async () => {
+  const folderPath = await window.electronAPI.selectFolder();
+  if (folderPath) {
+    downloadFolderInput.value = folderPath;
+    // No need to call set here, main process does it on selection
+  }
+});
+
+// Event listener for the "Download" button
+downloadBtn.addEventListener('click', () => {
+  const shareCode = shareCodeInput.value.trim();
+  const downloadPath = downloadFolderInput.value;
+
+  if (!shareCode || !downloadPath) {
+    addStatusMessage('Please provide both a share code and a download folder.', 'error');
+    return;
+  }
+
+  // Disable button and update text during download
+  downloadBtn.disabled = true;
+  downloadBtnText.textContent = 'Working...';
+  statusContainer.innerHTML = ''; // Clear previous logs
+  addStatusMessage('Starting process...', 'info');
+
+  // Send data to main process
+  window.electronAPI.downloadDemo({ shareCode, downloadPath });
+});
+
+// Listen for status updates from the main process
+window.electronAPI.onDownloadStatus(({ status, message, isError }) => {
+  console.log(`Status Update: ${status} - ${message}`);
+  addStatusMessage(message, isError ? 'error' : 'success');
+
+  if (status === 'complete' || status === 'error') {
+    // Re-enable button and reset text on completion or error
+    downloadBtn.disabled = false;
+    downloadBtnText.textContent = 'Download Demo';
+  }
+});
+
+/**
+ * Adds a new message to the status log display.
+ * @param {string} message - The message to display.
+ * @param {'info'|'success'|'error'} type - The type of message for styling.
+ */
+function addStatusMessage(message, type = 'info') {
+    const p = document.createElement('p');
+    const timestamp = new Date().toLocaleTimeString();
+    p.innerHTML = `<span class="text-gray-500 mr-2">[${timestamp}]</span> ${message}`;
+
+    switch (type) {
+        case 'success':
+            p.classList.add('text-green-400');
+            break;
+        case 'error':
+            p.classList.add('text-red-400');
+            break;
+        case 'info':
+        default:
+            p.classList.add('text-gray-300');
+            break;
+    }
+    
+    // If it's the initial message, replace it. Otherwise, append.
+    if (statusContainer.querySelector('.text-gray-500')) {
+        statusContainer.innerHTML = '';
+    }
+
+    statusContainer.appendChild(p);
+    // Auto-scroll to the bottom
+    statusContainer.scrollTop = statusContainer.scrollHeight;
+}
