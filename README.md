@@ -1,82 +1,79 @@
-CS2 Demo Downloader
+# CS2 Demo Downloader
+
 A user-friendly desktop application for Windows that simplifies the process of downloading and decompressing Counter-Strike 2 match demos directly from share codes.
 
-Features
-Simple Interface: A clean, modern, and intuitive user interface designed for ease of use.
+## Features
 
-Flexible Input: Accepts both direct match share codes (e.g., CSGO-...) and full Steam run links.
+* **Simple Interface:** A clean, modern, and intuitive user interface designed for ease of use.
+* **Flexible Input:** Accepts both direct match share codes (e.g., `CSGO-...`) and full Steam run links.
+* **Single & Batch Downloads:** Download demos one by one or paste a list of share codes to process them in a batch.
+* **Concurrent Downloads:** Utilizes a multi-threaded worker system to download multiple demos simultaneously, significantly speeding up batch processing.
+* **Efficient Processing:** Downloads and decompresses files in a streamlined pipeline to save time and disk space.
+* **Progress Tracking:** Visual progress bars provide real-time feedback on resolving, downloading, and decompressing demos.
+* **Persistent Settings:** Remembers your selected download folder, so you only need to set it once.
+* **Error Handling:** Includes a 5-minute timeout on downloads and a "Retry" button for any failed attempts.
 
-Single & Batch Downloads: Download demos one by one or paste a list of share codes to process them in a batch.
+## Installation
 
-Concurrent Downloads: Utilizes a multi-threaded worker system to download multiple demos simultaneously, significantly speeding up batch processing.
+1.  Go to the [Releases](<!-- Link to your GitHub releases page -->) page of this repository.
+2.  Download the latest `.exe` installer (e.g., `CS2-Demo-Downloader-Setup-vX.X.X.exe`).
+3.  Run the installer.
 
-Efficient Processing: Downloads and decompresses files in a streamlined pipeline to save time and disk space.
+**Note:** When you run the installer for the first time, Windows SmartScreen may show a warning because this is a new application. This is expected. To proceed, simply click **"More info"** and then **"Run anyway"**.
 
-Progress Tracking: Visual progress bars provide real-time feedback on resolving, downloading, and decompressing demos.
+## How to Use
 
-Persistent Settings: Remembers your selected download folder, so you only need to set it once.
+### Single Download
 
-Error Handling: Includes a 5-minute timeout on downloads and a "Retry" button for any failed attempts.
+1.  Launch the application.
+2.  Select your desired download folder.
+3.  Paste a share code or Steam link into the "Single Download" input box.
+4.  Click **"Download Demo"**.
 
-Installation
-Go to the releases page of this repository.
+### Batch Download
 
-Download the latest .exe installer (e.g., CS2-Demo-Downloader-Setup-vX.X.X.exe).
+1.  Select your desired download folder.
+2.  Paste multiple share codes (one per line) into the "Batch Download" text area.
+3.  Adjust the number of concurrent workers if desired.
+4.  Click **"Find Demos"**.
+5.  Once the valid demos are found, you can either copy the direct download links or click **"Download All"** to begin processing the entire batch.
 
-Run the installer.
+## For Developers
 
-Note: When you run the installer for the first time, Windows SmartScreen may show a warning because this is a new application. This is expected. To proceed, simply click "More info" and then "Run anyway".
+This application is built with [Electron](https://www.electronjs.org/).
 
-How to Use
-Single Download
-Launch the application.
+### To run in development mode:
 
-Select your desired download folder.
+1.  Clone the repository:
+    ```bash
+    git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
+    ```
+2.  Navigate to the project directory:
+    ```bash
+    cd your-repo-name
+    ```
+3.  Install dependencies:
+    ```bash
+    npm install
+    ```
+4.  Run the application:
+    ```bash
+    npm start
+    ```
 
-Paste a share code or Steam link into the "Single Download" input box.
+### To build the installer:
 
-Click "Download Demo".
-
-Batch Download
-Select your desired download folder.
-
-Paste multiple share codes (one per line) into the "Batch Download" text area.
-
-Adjust the number of concurrent workers if desired.
-
-Click "Find Demos".
-
-Once the valid demos are found, you can either copy the direct download links or click "Download All" to begin processing the entire batch.
-
-For Developers
-This application is built with Electron.
-
-To run in development mode:
-Clone the repository:
-
-git clone [https://github.com/norton62/cs2-demo-downloader-gui.git](https://github.com/norton62/cs2-demo-downloader-gui.git)
-
-Navigate to the project directory:
-
-cd your-repo-name
-
-Install dependencies:
-
-npm install
-
-Run the application:
-
-npm start
-
-To build the installer:
+```bash
 npm run dist
+```
 
-The installer will be located in the dist folder.
+The installer will be located in the `dist` folder.
 
-Credits
-Created by: Norton
+## Credits
 
-CLI Tool: This application is a graphical wrapper for the cs2-sharecode-cli tool by SoulxSlayer.
+* **Created by:** Norton
+* **CLI Tool:** This application is a graphical wrapper for the [cs2-sharecode-cli](https://github.com/SoulxSlayer/cs2-sharecode-cli) tool by SoulxSlayer.
 
-License
+## License
+
 This project is licensed under the MIT License.
