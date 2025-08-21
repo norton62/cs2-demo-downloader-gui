@@ -1,5 +1,7 @@
 # CS2 Demo Downloader
 
+![CS2 Demo Downloader Interface](https://github.com/user-attachments/assets/d8947e2b-a1e9-42b1-9d5f-4369ffa42a2e)
+
 A user-friendly desktop application for Windows that simplifies the process of downloading and decompressing Counter-Strike 2 match demos directly from share codes.
 
 ## Features
@@ -15,7 +17,7 @@ A user-friendly desktop application for Windows that simplifies the process of d
 
 ## Installation
 
-1.  Go to the [Releases](<!-- Link to your GitHub releases page -->) page of this repository.
+1.  Go to the [Releases](https://github.com/norton62/cs2-demo-downloader-gui/releases) page of this repository.
 2.  Download the latest `.exe` installer (e.g., `CS2-Demo-Downloader-Setup-vX.X.X.exe`).
 3.  Run the installer.
 
@@ -46,7 +48,7 @@ This application is built with [Electron](https://www.electronjs.org/).
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
+    git clone [https://github.com/norton62/cs2-demo-downloader-gui.git](https://github.com/norton62/cs2-demo-downloader-gui.git)
     ```
 2.  Navigate to the project directory:
     ```bash
