@@ -1,0 +1,82 @@
+CS2 Demo Downloader
+A user-friendly desktop application for Windows that simplifies the process of downloading and decompressing Counter-Strike 2 match demos directly from share codes.
+
+Features
+Simple Interface: A clean, modern, and intuitive user interface designed for ease of use.
+
+Flexible Input: Accepts both direct match share codes (e.g., CSGO-...) and full Steam run links.
+
+Single & Batch Downloads: Download demos one by one or paste a list of share codes to process them in a batch.
+
+Concurrent Downloads: Utilizes a multi-threaded worker system to download multiple demos simultaneously, significantly speeding up batch processing.
+
+Efficient Processing: Downloads and decompresses files in a streamlined pipeline to save time and disk space.
+
+Progress Tracking: Visual progress bars provide real-time feedback on resolving, downloading, and decompressing demos.
+
+Persistent Settings: Remembers your selected download folder, so you only need to set it once.
+
+Error Handling: Includes a 5-minute timeout on downloads and a "Retry" button for any failed attempts.
+
+Installation
+Go to the releases page of this repository.
+
+Download the latest .exe installer (e.g., CS2-Demo-Downloader-Setup-vX.X.X.exe).
+
+Run the installer.
+
+Note: When you run the installer for the first time, Windows SmartScreen may show a warning because this is a new application. This is expected. To proceed, simply click "More info" and then "Run anyway".
+
+How to Use
+Single Download
+Launch the application.
+
+Select your desired download folder.
+
+Paste a share code or Steam link into the "Single Download" input box.
+
+Click "Download Demo".
+
+Batch Download
+Select your desired download folder.
+
+Paste multiple share codes (one per line) into the "Batch Download" text area.
+
+Adjust the number of concurrent workers if desired.
+
+Click "Find Demos".
+
+Once the valid demos are found, you can either copy the direct download links or click "Download All" to begin processing the entire batch.
+
+For Developers
+This application is built with Electron.
+
+To run in development mode:
+Clone the repository:
+
+git clone [https://github.com/norton62/cs2-demo-downloader-gui.git](https://github.com/norton62/cs2-demo-downloader-gui.git)
+
+Navigate to the project directory:
+
+cd your-repo-name
+
+Install dependencies:
+
+npm install
+
+Run the application:
+
+npm start
+
+To build the installer:
+npm run dist
+
+The installer will be located in the dist folder.
+
+Credits
+Created by: Norton
+
+CLI Tool: This application is a graphical wrapper for the cs2-sharecode-cli tool by SoulxSlayer.
+
+License
+This project is licensed under the MIT License.
